@@ -90,8 +90,17 @@ dialog::backdrop{background:rgba(20,8,14,.55)}
 .sum .pay b{font-size:19px}
 .sum .pay .rest{border-top:1px solid currentColor;padding-top:6px}
 .sum .pay .rest b{font-size:24px}
-.paytag{display:inline-block;margin:4px 0;padding:4px 12px;border-radius:99px;font-weight:700;font-size:14px;border:2px solid var(--pink);color:var(--pink)}
+.paytag{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0;padding:8px 12px;border-radius:12px;font-size:14px;border:2px solid var(--pink);color:var(--pink)}
+.paytag b{font-size:16px}
+.paytag .r{margin-left:auto;font-weight:800}
+.paytag .r b{font-size:19px}
 .paytag.full{border-color:var(--leaf);color:var(--leaf)}
+#f .stk{position:sticky;top:-16px;z-index:4;background:var(--card);margin:-16px -16px 10px;padding:16px 16px 0}
+#f .stk .head{position:static;margin:0 0 6px;padding:0;border:0}
+.topsum{display:flex;gap:8px;padding:8px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.topsum div{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.2;font-size:12px;color:var(--muted)}
+.topsum b{font-size:18px;color:var(--ink)}
+.topsum .rest b{color:var(--pink);font-size:20px}
 #atabs{display:flex;gap:6px;flex-wrap:wrap}
 .ftab{padding:6px 14px}
 .ftab[aria-pressed="true"]{background:var(--leaf);color:var(--bg)}
@@ -134,6 +143,7 @@ input[type=date],input[type=time]{height:46px}
  .card{padding:12px;border-radius:16px}
  .fab{display:block;position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:5;padding:14px 20px;border:0;border-radius:99px;background:var(--pink);color:var(--onpink);font:800 16px Nunito,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.28)}
  dialog{width:100%;max-width:none!important;height:100%;height:100dvh;max-height:none;border:0;border-radius:0;padding:16px 14px;overscroll-behavior:contain}
+ #f .stk{margin:-16px -14px 10px;padding:12px 14px 0}
  dialog .head{position:sticky;top:-16px;z-index:4;background:var(--card);margin:-16px -14px 10px;padding:10px 14px;border-bottom:1px solid var(--line)}
  #f .fbar{bottom:-16px;margin:12px -14px -16px;padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px))}
  .vpick{max-height:42vh}
@@ -240,7 +250,8 @@ body.auth-pending main,body.auth-pending .fab{visibility:hidden}
 
 <dialog id="dlg">
 <form id="f" novalidate>
-<div class="head"><h2 id="ftitle">Новый заказ</h2><button type="button" class="ib" id="x" aria-label="Закрыть">×</button></div>
+<div class="stk"><div class="head"><h2 id="ftitle">Новый заказ</h2><button type="button" class="ib" id="x" aria-label="Закрыть">×</button></div>
+<div class="topsum" id="topsum"></div></div>
 <label for="onum">Номер заказа</label><input id="onum" autocomplete="off" placeholder="A1" style="max-width:160px;font-weight:800">
 <div class="two keep"><div><label for="date">Дата</label><input type="date" id="date" required></div>
 <div><label for="time">Время</label><input type="time" id="time"></div></div>
@@ -289,8 +300,8 @@ function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate
 function parse(s){var p=s.split("-");return new Date(+p[0],+p[1]-1,+p[2])}
 function flowersOf(o){var t={};COLORS.forEach(function(c){var k=(o.items&&o.items[c.id])||0;if(k)t[c.id]=k});(o.mixes||[]).forEach(function(m){var cp=m.copies||1;Object.keys(m.items||{}).forEach(function(id){t[id]=(t[id]||0)+cp*m.items[id]})});return t}
 function cnt(o){var t=flowersOf(o),n=0;Object.keys(t).forEach(function(k){n+=t[k]});return n}
-function payTag(o){var t=o.total||0,p=o.paid||0,r=Math.max(0,t-p);
- return '<div class="paytag'+(t>0&&r===0?' full':'')+'">'+(t>0&&r===0?'Оплачено полностью':p?'Предоплата '+money(p)+' · остаток <b>'+money(r)+'</b>':'Без предоплаты · к оплате <b>'+money(t)+'</b>')+'</div>'}
+function payTag(o){var t=o.total||0,p=o.paid||0,r=Math.max(0,t-p),full=t>0&&r===0;
+ return '<div class="paytag'+(full?' full':'')+'"><span>Сумма <b>'+money(t)+'</b></span><span>Предоплата <b>'+money(p)+'</b></span><span class="r">'+(full?'Оплачено':'Остаток <b>'+money(r)+'</b>')+'</span></div>'}
 function normNum(s){var m={"А":"A","В":"B","С":"C","Е":"E","Н":"H","К":"K","М":"M","О":"O","Р":"P","Т":"T","Х":"X"};return String(s||"").toUpperCase().replace(/\s+/g,"").replace(/[АВСЕНКМОРТХ]/g,function(c){return m[c]})}
 function nextNum(){var last=orders.filter(function(o){return o.num}).sort(function(a,b){return a.id<b.id?-1:1}).pop(),pre=myLetter()||"A";
  if(last&&!myLetter()){var mm=normNum(last.num).match(/^(\D+)\d+$/);if(mm)pre=mm[1]}
@@ -388,7 +399,7 @@ function renderSearch(t){
  var h='<div class="head"><h2>Найдено заказов: '+l.length+'</h2></div>';
  h+=l.length?l.map(function(o){
   var d=parse(o.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
-  return '<div class="ord st'+o.status+'"><h3><span>'+numTag(o)+esc(d)+(o.time?', '+esc(o.time):'')+' · '+esc(o.name||"Без имени")+'</span><span>'+money(o.total)+'</span></h3><p>'+phoneLink(o.phone)+modeLine(o)+'</p>'+mixLines(o)+payTag(o)+'<div class="acts"><button class="pill s'+o.status+'" data-s="'+esc(o.id)+'">'+STAT[o.status]+'</button><button class="pill" data-e="'+esc(o.id)+'">Изменить</button><button class="pill" data-g="'+esc(o.date)+'">Показать в календаре</button></div></div>'}).join(""):'<p class="empty">Ничего не найдено. Проверьте имя или номер телефона.</p>';
+  return '<div class="ord st'+o.status+'"><h3><span>'+numTag(o)+esc(d)+(o.time?', '+esc(o.time):'')+' · '+esc(o.name||"Без имени")+'</span><span>'+money(o.total)+'</span></h3><p>'+phoneLink(o.phone)+modeLine(o)+'</p>'+payTag(o)+mixLines(o)+'<div class="acts"><button class="pill s'+o.status+'" data-s="'+esc(o.id)+'">'+STAT[o.status]+'</button><button class="pill" data-e="'+esc(o.id)+'">Изменить</button><button class="pill" data-g="'+esc(o.date)+'">Показать в календаре</button></div></div>'}).join(""):'<p class="empty">Ничего не найдено. Проверьте имя или номер телефона.</p>';
  $("day").innerHTML=h}
 function renderDay(){
  var term=$("srch").value.trim();if(term){renderSearch(term);return}
@@ -400,8 +411,8 @@ function renderDay(){
  h+=l.length?l.map(function(o){
   return '<div class="ord st'+o.status+'"><h3><span>'+numTag(o)+(o.time?esc(o.time)+' · ':'')+esc(o.name||"Без имени")+'</span><span>'+money(o.total)+'</span></h3>'+
   '<p>'+phoneLink(o.phone)+modeLine(o)+'</p>'+
-  mixLines(o)+
   payTag(o)+
+  mixLines(o)+
   (o.note?'<p>'+esc(o.note)+'</p>':'')+
   '<div class="acts"><button class="pill s'+o.status+'" data-s="'+esc(o.id)+'">'+STAT[o.status]+'</button><button class="pill" data-e="'+esc(o.id)+'">Изменить</button></div></div>'}).join(""):'<p class="empty">На этот день заказов нет.</p>';
  $("day").innerHTML=h}
@@ -423,7 +434,7 @@ function renderAll(){
  l.forEach(function(o){
   if(o.date!==cur){cur=o.date;var dd=days[cur];h+='<h3 class="dh"><span>'+esc(parse(cur).toLocaleDateString("ru-RU",{weekday:"short",day:"numeric",month:"long"}))+'</span><small>заказов: '+dd.n+' · тюльпанов: '+dd.q+'</small></h3>'}
   h+='<div class="ord st'+o.status+'"><h3><span>'+numTag(o)+(o.time?esc(o.time)+' · ':'')+esc(o.name||"Без имени")+'</span><span>'+money(o.total)+'</span></h3>'+
-   '<p>'+phoneLink(o.phone)+modeLine(o)+'</p>'+mixLines(o)+payTag(o)+(o.note?'<p>'+esc(o.note)+'</p>':'')+
+   '<p>'+phoneLink(o.phone)+modeLine(o)+'</p>'+payTag(o)+mixLines(o)+(o.note?'<p>'+esc(o.note)+'</p>':'')+
    '<div class="acts"><button class="pill s'+o.status+'" data-s="'+esc(o.id)+'">'+STAT[o.status]+'</button><button class="pill" data-e="'+esc(o.id)+'">Изменить</button><button class="pill" data-g="'+esc(o.date)+'">Показать в календаре</button></div></div>'});
  $("alist").innerHTML=h||'<p class="empty">'+(orders.length?'По этим условиям заказов нет.':'Заказов пока нет.')+'</p>'}
 $("fab").onclick=function(){openForm(null)};
@@ -535,6 +546,7 @@ function mode(){return document.querySelector('input[name="mode"]:checked').valu
 function calc(){var mb=0,mn=0,ms=0,mpk=0;mixes.forEach(function(m){var cp=m.copies||1;mb+=cp;mn+=cp*mixCnt(m);ms+=cp*mixPrice(m);mpk+=cp*mixPack(m)});
  var t=ms+mpk+num("extra"),p=num("paid");
  $("sum").innerHTML='<div><span>Букеты: '+mb+' шт., тюльпанов '+mn+'</span><span>'+money(ms)+'</span></div>'+(mpk?'<div><span>Упаковка</span><span>'+money(mpk)+'</span></div>':'')+'<div><span>Доставка</span><span>'+money(num("extra"))+'</span></div><div class="t"><span>Итого</span><span>'+money(t)+'</span></div><div class="pay"><div><span>Предоплата</span><b>'+money(p)+'</b></div><div class="rest"><span>'+(p>=t&&t>0?'Оплачено полностью · остаток':'Остаток при выдаче')+'</span><b>'+money(Math.max(0,t-p))+'</b></div></div>';
+  $("topsum").innerHTML='<div>Сумма<b>'+money(t)+'</b></div><div>Предоплата<b>'+money(p)+'</b></div><div class="rest">Остаток<b>'+money(Math.max(0,t-p))+'</b></div>';
   $("barTot").innerHTML='<small>Итого</small><b>'+money(t)+'</b><small>Остаток '+money(Math.max(0,t-p))+'</small>';
  return {n:mn,t:t}}
 ["extra","paid"].forEach(function(i){$(i).addEventListener("input",calc)});
