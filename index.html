@@ -246,7 +246,7 @@ dialog{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 <button class="fab" id="fab" type="button" aria-label="Новый заказ">+ Заказ</button>
 
 <dialog id="stdlg">
-<div class="head"><h2>Склад</h2><button type="button" class="ib" id="stx" aria-label="Закрыть">×</button></div>
+<div class="head"><h2>Склад и урожай</h2><button type="button" class="ib" id="stx" aria-label="Закрыть">×</button></div>
 <p class="sub" id="stinfo" style="margin:0 0 8px"></p>
 <div class="two"><div><label for="strs">Страховка, %</label><input id="strs" inputmode="numeric" value="10"></div>
 <div style="display:flex;align-items:end"><label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 10px;font-weight:700"><input type="checkbox" id="stall" style="width:22px;height:22px">Все сорта</label></div></div>
@@ -482,13 +482,13 @@ function renderStock(){
  if(!$("stdlg").open)return;
  var own=isOwner(),ord=stOrdered(),all=$("stall").checked;
  $("strs").value=document.activeElement===$("strs")?$("strs").value:stReserve();$("strs").disabled=!own;
- $("stinfo").textContent=stockErr||(own?"Впишите, сколько каждого сорта закуплено. Страховка вычитается из закупленного на брак и потери.":"Остатки видны всем, менять их может владелец.");
+ $("stinfo").textContent=stockErr||(own?"Впишите, сколько каждого сорта у вас есть или будет срезано. Страховка вычитается на брак и потери при срезке, хранении и сборке.":"Урожай и остатки видны всем, менять урожай может владелец.");
  var rows=COLORS.filter(function(c){return all||stBought(c.id)||ord[c.id]});
  var buy=0,over=0,free=0;
  COLORS.forEach(function(c){var f=stSafe(c.id)-(ord[c.id]||0);if(stBought(c.id)||ord[c.id]){if(f<0){over++;buy+=Math.ceil((ord[c.id]||0)/(1-stReserve()/100))-stBought(c.id)}else free+=f}});
- $("stsum").innerHTML='<span>Свободно: <b>'+free+'</b></span><span>Не хватает сортов: <b>'+over+'</b></span>'+(buy>0?'<span>Докупить: <b>'+buy+'</b></span>':'');
+ $("stsum").innerHTML='<span>Свободно: <b>'+free+'</b></span><span>Не хватает сортов: <b>'+over+'</b></span>'+(buy>0?'<span>Не хватает до заказов: <b>'+buy+'</b></span>':'');
  $("stlist").innerHTML=rows.length?rows.map(function(c){var o=ord[c.id]||0,f=stSafe(c.id)-o,cls=f<0?" neg":(stBought(c.id)&&f<=Math.ceil(stBought(c.id)*.1)?" low":"");
-  return '<div class="srow"><span class="dot" style="background:'+c.hex+'"></span><span class="nm">'+esc(c.name)+'<small>в заказах '+o+(stBought(c.id)?' · страховка '+(stBought(c.id)-stSafe(c.id)):'')+'</small></span><input data-st="'+c.id+'" inputmode="numeric" value="'+(stBought(c.id)||"")+'" placeholder="0" aria-label="Закуплено: '+esc(c.name)+'"'+(own?"":" disabled")+'><span class="fr'+cls+'">'+(stBought(c.id)||o?f:"")+'</span></div>'}).join(""):'<p class="empty">Пока нет данных. Включите «Все сорта» и впишите закупленное количество.</p>'}
+  return '<div class="srow"><span class="dot" style="background:'+c.hex+'"></span><span class="nm">'+esc(c.name)+'<small>в заказах '+o+(stBought(c.id)?' · страховка '+(stBought(c.id)-stSafe(c.id)):'')+'</small></span><input data-st="'+c.id+'" inputmode="numeric" value="'+(stBought(c.id)||"")+'" placeholder="0" aria-label="Урожай: '+esc(c.name)+'"'+(own?"":" disabled")+'><span class="fr'+cls+'">'+(stBought(c.id)||o?f:"")+'</span></div>'}).join(""):'<p class="empty">Пока нет данных. Включите «Все сорта» и впишите, сколько цветов каждого сорта у вас есть или будет срезано.</p>'}
 function stSave(){if(!db||!isOwner())return;db.doc("stock/main").set({items:stock.items,reserve:stReserve()})}
 $("showst").onclick=function(){$("stdlg").showModal();renderStock()};
 $("stx").onclick=function(){$("stdlg").close()};
