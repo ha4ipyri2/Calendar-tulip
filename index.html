@@ -302,7 +302,7 @@ dialog{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 <label>Получение</label>
 <div class="seg"><label><input type="radio" name="mode" value="delivery" checked><span>Доставка</span></label><label><input type="radio" name="mode" value="pickup"><span>Самовывоз</span></label></div>
 <div id="addrBox"><label for="addr">Адрес</label><input id="addr" autocomplete="off" placeholder="Улица, дом, квартира"></div>
-<label>Букеты</label><p class="sub" style="margin:0 0 6px">Один букет — одна карточка: один сорт или микс из нескольких, со своей упаковкой.</p><div id="mixes"></div><button type="button" class="ghost" id="addmix">+ Добавить букет</button>
+<label>Букеты</label><p class="sub" style="margin:0 0 6px">Один букет — одна карточка: один сорт или микс из нескольких, со своей упаковкой.</p><div id="mixes"></div><button type="button" class="ghost" id="addmix">+ Добавить букет</button> <button type="button" class="ghost" id="addbunch">+ Добавить банч (25 шт.)</button>
 <div class="two keep"><div><label for="extra">Доставка</label><input id="extra" inputmode="numeric" value="0"></div>
 <div><label for="paid">Предоплата</label><input id="paid" inputmode="numeric" value="0"></div></div>
 <label for="note">Комментарий</label><textarea id="note"></textarea>
@@ -316,7 +316,7 @@ dialog{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 
 <script>
 // Настройки: цены и доставка по умолчанию
-var CONFIG={cur:"сом",delivery:0,tulip:100};
+var CONFIG={cur:"сом",delivery:0,tulip:100,bunchQty:25,bunchStem:90};
 // Доступ. Почты писать маленькими буквами.
 // OWNERS: кто может удалять заказы (то же самое должно быть записано в правилах Firestore).
 // TEAM: буква номера заказа для каждого сотрудника, например {"anna@mail.com":"A","nurlan@mail.com":"B"}
@@ -352,10 +352,11 @@ function waNum(p){var d=String(p||"").replace(/\D/g,"");if(d.length<9)return "";
 function phoneLink(p){var d=String(p||"").replace(/[^\d+]/g,""),w=waNum(p);return d.replace(/\D/g,"").length>=5?'<a href="tel:'+esc(d)+'">'+esc(p)+'</a>'+(w?' <a class="wa" href="https://wa.me/'+w+'" target="_blank" rel="noopener">WhatsApp</a>':''):esc(p||"")}
 function modeLine(o){return o.mode==="delivery"?' · <span class="mtag d">Доставка</span> '+esc(o.addr||"адрес не указан"):' · <span class="mtag p">Самовывоз</span>'}
 function numTag(o){return o.num?'<span class="num">'+esc(o.num)+'</span>':''}
-function bkind(m){return Object.keys(m.items||{}).length>1?"Микс-букет":"Моно-букет"}
+function bname(m){return m&&m.bunch?"Банч":"Букет"}
+function bkind(m){return m&&m.bunch?"Банч "+CONFIG.bunchQty+" шт.":(Object.keys(m.items||{}).length>1?"Микс-букет":"Моно-букет")}
 function bouquetsOf(o){var b=(o.mixes||[]).slice();if(o.items&&Object.keys(o.items).length)b.unshift({copies:1,items:o.items,pack:o.pack});return b}
 function mixLines(o){return bouquetsOf(o).map(function(m,i){var cp=m.copies||1,c0=COLORS.filter(function(c){return m.items&&c.id in m.items})[0],pr=mixPrice(m)+mixPack(m);
- return '<div class="mixl" style="border-left:5px solid '+(c0?c0.hex:'var(--line)')+'"><b>Букет '+(i+1)+'</b> · '+bkind(m)+(cp>1?' · ×'+cp:'')+(PACK[m.pack]&&m.pack!=="none"?' · '+esc(PACK[m.pack].name):' · без упаковки')+' · '+money(pr*cp)+'<div class="it">'+chips(m.items)+'</div></div>'}).join("")}
+ return '<div class="mixl" style="border-left:5px solid '+(c0?c0.hex:'var(--line)')+'"><b>'+bname(m)+' '+(i+1)+'</b> · '+bkind(m)+(cp>1?' · ×'+cp:'')+(PACK[m.pack]&&m.pack!=="none"?' · '+esc(PACK[m.pack].name):' · без упаковки')+' · '+money(pr*cp)+'<div class="it">'+chips(m.items)+'</div></div>'}).join("")}
 
 var now=new Date(),y0=now.getFullYear();
 var target=(now.getMonth()>2||(now.getMonth()===2&&now.getDate()>8))?y0+1:y0;
@@ -560,17 +561,17 @@ $("day").addEventListener("click",function(e){
 // Форма
 var mixes=[],lastAdd=0,openPick=-1,pickTerm="",pickGrp="",pickStep=1,touch=!!(window.matchMedia&&matchMedia("(pointer:coarse)").matches);
 var mx=$("mixes");
-function mixPrice(m){var s=0;COLORS.forEach(function(c){s+=(m.items[c.id]||0)*c.price});return s}
+function mixPrice(m){var s=0;COLORS.forEach(function(c){s+=(m.items[c.id]||0)*(m.bunch?CONFIG.bunchStem:c.price)});return s}
 function mixCnt(m){var n=0;Object.keys(m.items).forEach(function(k){n+=m.items[k]||0});return n}
 function mixPack(m){return (PACK[m.pack]||PACK.none).price}
-function mixSum(m){var p=mixPrice(m)+mixPack(m),cp=m.copies||1;return mixCnt(m)+' шт. в букете'+(PACK[m.pack]&&m.pack!=="none"?' · '+PACK[m.pack].name:'')+' · '+money(p)+(cp>1?' × '+cp+' = '+money(p*cp):'')}
+function mixSum(m){var p=mixPrice(m)+mixPack(m),cp=m.copies||1;return mixCnt(m)+(m.bunch?' шт. в банче · '+CONFIG.bunchStem+' за штуку':' шт. в букете')+(PACK[m.pack]&&m.pack!=="none"?' · '+PACK[m.pack].name:'')+' · '+money(p)+(cp>1?' × '+cp+' = '+money(p*cp):'')}
 function packSel(m,i){return '<div class="mh" style="margin-top:8px"><label style="margin:0" for="pk'+i+'">Упаковка букета</label><select id="pk'+i+'" data-i="'+i+'" data-pk style="width:auto;flex:1;min-width:150px">'+Object.keys(PACK).map(function(k){return '<option value="'+k+'"'+((m.pack||"none")===k?' selected':'')+'>'+esc(PACK[k].name)+(PACK[k].price?' · '+money(PACK[k].price):'')+'</option>'}).join("")+'</select></div>'}
 function vlistHtml(m,i){var t=pickTerm.trim().toLowerCase(),l=COLORS.filter(function(c){return (!t||c.name.toLowerCase().indexOf(t)>-1)&&(!pickGrp||c.g===pickGrp)});
  return l.length?l.map(function(c){return '<button type="button" class="vb" data-i="'+i+'" data-add="'+c.id+'"><span class="dot" style="background:'+c.hex+'"></span><span>'+esc(c.name)+'</span>'+(m.items[c.id]?'<b>'+m.items[c.id]+'</b>':'')+'</button>'}).join(""):'<p class="empty" style="grid-column:1/-1">Такого сорта нет</p>'}
 function pickHtml(m,i){
- if(openPick!==i)return '<button type="button" class="ghost" data-openpick="'+i+'" style="margin-top:8px">+ Добавить сорт</button>';
+ if(openPick!==i)return '<button type="button" class="ghost" data-openpick="'+i+'" style="margin-top:8px">'+(m.bunch?(Object.keys(m.items).length?'Сменить сорт':'Выбрать сорт'):'+ Добавить сорт')+'</button>';
  var gs=[];COLORS.forEach(function(c){if(gs.indexOf(c.g)<0)gs.push(c.g)});
- return '<div class="pick"><div class="stepbar"><small>Добавлять по</small>'+[1,5,10,25].map(function(n){return '<button type="button" class="stp" data-step="'+n+'" aria-pressed="'+(pickStep===n)+'">'+n+'</button>'}).join("")+'</div>'+
+ return '<div class="pick">'+(m.bunch?'':'<div class="stepbar"><small>Добавлять по</small>'+[1,5,10,25].map(function(n){return '<button type="button" class="stp" data-step="'+n+'" aria-pressed="'+(pickStep===n)+'">'+n+'</button>'}).join("")+'</div>')+
  '<input type="search" class="addf" data-i="'+i+'" placeholder="Поиск сорта по названию" value="'+esc(pickTerm)+'" autocomplete="off" aria-label="Поиск сорта для букета '+(i+1)+'">'+
  '<div class="gbar">'+[""].concat(gs).map(function(g){return '<button type="button" class="gb" data-grp="'+esc(g)+'" aria-pressed="'+(pickGrp===g)+'">'+(g||"Все")+'</button>'}).join("")+'</div>'+
  '<div class="vpick" data-v="'+i+'">'+vlistHtml(m,i)+'</div><button type="button" class="ghost" data-closepick="1">Готово</button></div>'}
@@ -578,10 +579,11 @@ function renderMixes(){
  mx.innerHTML=mixes.map(function(m,i){
   var c0=COLORS.filter(function(c){return c.id in m.items})[0],nv=Object.keys(m.items).length;
   var rows=COLORS.filter(function(c){return c.id in m.items}).map(function(c){
+   if(m.bunch)return '<div class="mrow"><span class="dot" style="background:'+c.hex+'"></span><span class="nm">'+esc(c.name)+'</span><b>'+CONFIG.bunchQty+' шт.</b></div>';
    return '<div class="mrow"><span class="dot" style="background:'+c.hex+'"></span><span class="nm">'+esc(c.name)+'</span><div class="st"><button type="button" data-i="'+i+'" data-c="'+c.id+'" data-d="-1" aria-label="Меньше: '+esc(c.name)+'">−</button><input inputmode="numeric" data-i="'+i+'" data-q="'+c.id+'" value="'+m.items[c.id]+'" aria-label="Количество: '+esc(c.name)+'"><button type="button" data-i="'+i+'" data-c="'+c.id+'" data-d="1" aria-label="Больше: '+esc(c.name)+'">+</button></div></div>'}).join("");
-  return '<div class="mx" style="border-left:6px solid '+(c0?c0.hex:'var(--line)')+'"><div class="mh"><div><span class="bn">Букет '+(i+1)+'</span><span class="kind">'+(nv?bkind(m):"пока пусто")+'</span></div><button type="button" class="pill" data-rm="'+i+'">Удалить</button></div>'+rows+
+  return '<div class="mx" style="border-left:6px solid '+(c0?c0.hex:'var(--line)')+'"><div class="mh"><div><span class="bn">'+bname(m)+' '+(i+1)+'</span><span class="kind">'+(nv?bkind(m):"пока пусто")+'</span></div><button type="button" class="pill" data-rm="'+i+'">Удалить</button></div>'+rows+
    pickHtml(m,i)+
-   packSel(m,i)+'<div class="mh" style="margin-top:8px"><span class="st">Таких букетов<button type="button" data-i="'+i+'" data-cp="-1" aria-label="Меньше букетов">−</button><input inputmode="numeric" data-i="'+i+'" data-copies value="'+(m.copies||1)+'" aria-label="Число одинаковых букетов"><button type="button" data-i="'+i+'" data-cp="1" aria-label="Больше букетов">+</button></span></div>'+
+   (m.bunch?'<p class="sub" style="margin:8px 0 0">Упаковка: крафт-бумага (входит в цену)</p>':packSel(m,i))+'<div class="mh" style="margin-top:8px"><span class="st">'+(m.bunch?'Сколько банчей':'Таких букетов')+'<button type="button" data-i="'+i+'" data-cp="-1" aria-label="Меньше букетов">−</button><input inputmode="numeric" data-i="'+i+'" data-copies value="'+(m.copies||1)+'" aria-label="Число одинаковых букетов"><button type="button" data-i="'+i+'" data-cp="1" aria-label="Больше букетов">+</button></span></div>'+
    '<p class="sub msum" data-s="'+i+'" style="margin:6px 0 0">'+esc(mixSum(m))+'</p></div>'}).join("");
  calc()}
 function updSum(i){var e=mx.querySelector('[data-s="'+i+'"]');if(e)e.textContent=mixSum(mixes[i]);calc()}
@@ -591,9 +593,10 @@ function addToMix(i,text){
  var hit=COLORS.filter(function(c){return c.name.toLowerCase()===t})[0];
  if(!hit){var p=COLORS.filter(function(c){return c.name.toLowerCase().indexOf(t)>-1});if(p.length===1)hit=p[0]}
  if(!hit)return;
- lastAdd=Date.now();pickTerm="";var m=mixes[i];m.items[hit.id]=(m.items[hit.id]||0)+1;
+ lastAdd=Date.now();pickTerm="";var m=mixes[i];if(m.bunch){m.items={};m.items[hit.id]=CONFIG.bunchQty;openPick=-1;renderMixes();return}m.items[hit.id]=(m.items[hit.id]||0)+1;
  renderMixes();focusEl('input[data-q="'+hit.id+'"][data-i="'+i+'"]')}
 $("addmix").addEventListener("click",function(){mixes.push({copies:1,items:{},pack:"none"});openPick=mixes.length-1;pickTerm="";pickGrp="";renderMixes();var cs=mx.querySelectorAll(".mx");if(cs.length)cs[cs.length-1].scrollIntoView({block:"nearest"});if(!touch)focusEl('.addf[data-i="'+(mixes.length-1)+'"]')});
+$("addbunch").addEventListener("click",function(){mixes.push({copies:1,items:{},pack:"kraft",bunch:true});openPick=mixes.length-1;pickTerm="";pickGrp="";renderMixes();var cs=mx.querySelectorAll(".mx");if(cs.length)cs[cs.length-1].scrollIntoView({block:"nearest"});if(!touch)focusEl('.addf[data-i="'+(mixes.length-1)+'"]')});
 mx.addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;
  if(b.dataset.rm!=null){mixes.splice(+b.dataset.rm,1);openPick=-1;renderMixes();return}
  if(b.dataset.openpick!=null){openPick=+b.dataset.openpick;pickTerm="";pickGrp="";renderMixes();return}
@@ -601,6 +604,7 @@ mx.addEventListener("click",function(e){var b=e.target.closest("button");if(!b)r
  if(b.dataset.step){pickStep=+b.dataset.step;renderMixes();return}
  if(b.dataset.grp!=null){pickGrp=b.dataset.grp;renderMixes();return}
  var i=+b.dataset.i,m=mixes[i];if(!m)return;
+ if(b.dataset.add&&m.bunch){m.items={};m.items[b.dataset.add]=CONFIG.bunchQty;openPick=-1;pickTerm="";renderMixes();return}
  if(b.dataset.add){var vp=mx.querySelector(".vpick"),gb=mx.querySelector(".gbar"),sc=vp?vp.scrollTop:0,gs0=gb?gb.scrollLeft:0;m.items[b.dataset.add]=Math.min(999,(m.items[b.dataset.add]||0)+pickStep);renderMixes();var vp2=mx.querySelector(".vpick"),gb2=mx.querySelector(".gbar");if(vp2)vp2.scrollTop=sc;if(gb2)gb2.scrollLeft=gs0;return}
  if(b.dataset.cp){m.copies=Math.max(1,Math.min(99,(m.copies||1)+(+b.dataset.cp)));renderMixes();focusEl('button[data-i="'+i+'"][data-cp="'+b.dataset.cp+'"]');return}
  if(b.dataset.c){var id=b.dataset.c,v=Math.min(999,(m.items[id]||0)+(+b.dataset.d));
@@ -651,7 +655,7 @@ $("f").addEventListener("submit",function(e){
  var nn=normNum($("onum").value);if(!nn)err="Укажите номер заказа.";else if(orders.some(function(x){return x.id!==editing&&normNum(x.num)===nn}))err="Номер "+nn+" уже занят. Свободный: "+nextNum()+".";else if(!$("date").value)err="Укажите дату.";else if(c.n<1)err="Добавьте хотя бы один букет с тюльпанами.";
  else if(!$("name").value.trim()&&!$("phone").value.trim())err="Укажите имя или телефон клиента.";
  $("err").textContent=err;if(err)return;
- var mxs=[];mixes.forEach(function(m){var it={};Object.keys(m.items).forEach(function(id){if(m.items[id]>0)it[id]=m.items[id]});if(Object.keys(it).length)mxs.push({copies:m.copies||1,items:it,pack:PACK[m.pack]?m.pack:"none"})});
+ var mxs=[];mixes.forEach(function(m){var it={};Object.keys(m.items).forEach(function(id){if(m.items[id]>0)it[id]=m.items[id]});if(Object.keys(it).length)mxs.push(m.bunch?{copies:m.copies||1,items:it,pack:"kraft",bunch:true}:{copies:m.copies||1,items:it,pack:PACK[m.pack]?m.pack:"none"})});
  var o={id:editing||("o"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)),num:nn,date:$("date").value,time:$("time").value,
   name:$("name").value.trim(),phone:$("phone").value.trim(),mode:mode(),addr:mode()==="delivery"?$("addr").value.trim():"",
   items:{},mixes:mxs,extra:num("extra"),paid:num("paid"),total:c.t,note:$("note").value.trim(),status:+$("status").value};
@@ -697,11 +701,11 @@ function buildXlsx(list){
  L.forEach(function(o){
   var bs=bouquetsOf(o),nb=0;bs.forEach(function(m){nb+=m.copies||1});
   var t=o.total||0,p=o.paid||0;
-  var cs=bs.map(function(m,i){var cp=m.copies||1;return "Букет "+(i+1)+(cp>1?" ×"+cp:"")+(PACK[m.pack]&&m.pack!=="none"?" ("+PACK[m.pack].name+")":"")+": "+COLORS.filter(function(c){return m.items[c.id]>0}).sort(function(a,b){return m.items[b.id]-m.items[a.id]}).map(function(c){return c.name+" "+m.items[c.id]}).join(", ")}).join("\n");
+  var cs=bs.map(function(m,i){var cp=m.copies||1;return bname(m)+" "+(i+1)+(cp>1?" ×"+cp:"")+(PACK[m.pack]&&m.pack!=="none"?" ("+PACK[m.pack].name+")":"")+": "+COLORS.filter(function(c){return m.items[c.id]>0}).sort(function(a,b){return m.items[b.id]-m.items[a.id]}).map(function(c){return c.name+" "+m.items[c.id]}).join(", ")}).join("\n");
   R1.push([o.num||"",xserial(o.date),o.time||"",o.name||"",o.phone||"",o.mode==="delivery"?"Доставка":"Самовывоз",o.addr||"",cs,nb,cnt(o),t,p,Math.max(0,t-p),STAT[o.status]||"",o.note||""]);
   bs.forEach(function(m,i){var cp=m.copies||1,n=mixCnt(m),comp=COLORS.filter(function(c){return m.items[c.id]>0}).sort(function(a,b){return m.items[b.id]-m.items[a.id]}).map(function(c){return c.name+" "+m.items[c.id]}).join(", ");
-   R2.push([o.num||"",xserial(o.date),o.time||"",o.name||"","Букет "+(i+1),bkind(m),comp,(PACK[m.pack]||PACK.none).name,cp,n,n*cp,(mixPrice(m)+mixPack(m))*cp]);
-   COLORS.filter(function(c){return m.items[c.id]>0}).sort(function(a,b){return m.items[b.id]-m.items[a.id]}).forEach(function(c){R4.push([o.num||"",xserial(o.date),o.time||"",o.name||"","Букет "+(i+1),c.name,m.items[c.id],cp,m.items[c.id]*cp,STAT[o.status]||""])})});
+   R2.push([o.num||"",xserial(o.date),o.time||"",o.name||"",bname(m)+" "+(i+1),bkind(m),comp,(PACK[m.pack]||PACK.none).name,cp,n,n*cp,(mixPrice(m)+mixPack(m))*cp]);
+   COLORS.filter(function(c){return m.items[c.id]>0}).sort(function(a,b){return m.items[b.id]-m.items[a.id]}).forEach(function(c){R4.push([o.num||"",xserial(o.date),o.time||"",o.name||"",bname(m)+" "+(i+1),c.name,m.items[c.id],cp,m.items[c.id]*cp,STAT[o.status]||""])})});
   if(o.status!==2){var f=flowersOf(o);Object.keys(f).forEach(function(id){act[id]=act[id]||{};act[id][o.date]=(act[id][o.date]||0)+f[id]});if(dates.indexOf(o.date)<0)dates.push(o.date)}});
  dates.sort();
  var R3=[["Сорт"].concat(dates.map(function(d){var p=d.split("-");return p[2]+"."+p[1]+"."+p[0]}),["Итого"])],tot=dates.map(function(){return 0}),gt=0;
