@@ -281,7 +281,7 @@ dialog{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 
 <script>
 // Настройки: цены и доставка по умолчанию
-var CONFIG={cur:"сом",delivery:200,tulip:100};
+var CONFIG={cur:"сом",delivery:0,tulip:100};
 // Доступ. Почты писать маленькими буквами.
 // OWNERS: кто может удалять заказы (то же самое должно быть записано в правилах Firestore).
 // TEAM: буква номера заказа для каждого сотрудника, например {"anna@mail.com":"A","nurlan@mail.com":"B"}
@@ -565,7 +565,7 @@ function openForm(o){
  editing=o?o.id:null;$("err").textContent="";delArm=false;$("del").textContent="Удалить заказ";
  $("ftitle").textContent=o?"Изменить заказ":"Новый заказ";$("del").classList.toggle("hidden",!o||!isOwner());
  $("onum").value=o&&o.num||nextNum();$("date").value=o?o.date:sel;$("time").value=o&&o.time||"";$("name").value=o&&o.name||"";$("phone").value=o&&o.phone||"";
- document.querySelector('input[name="mode"][value="'+(o&&o.mode==="pickup"?"pickup":"delivery")+'"]').checked=true;
+ document.querySelector('input[name="mode"][value="'+(o?(o.mode==="pickup"?"pickup":"delivery"):"pickup")+'"]').checked=true;
  $("addrBox").classList.toggle("hidden",mode()!=="delivery");$("addr").value=o&&o.addr||"";
  mixes=JSON.parse(JSON.stringify(o&&o.mixes||[]));if(o&&o.items&&Object.keys(o.items).length)mixes.unshift({copies:1,items:JSON.parse(JSON.stringify(o.items)),pack:PACK[o.pack]?o.pack:"none"});mixes.forEach(function(m){m.copies=m.copies||1;m.items=m.items||{};m.pack=PACK[m.pack]?m.pack:"none"});openPick=-1;renderMixes();
  $("extra").value=o?(o.extra||0):CONFIG.delivery;$("paid").value=o&&o.paid||0;$("note").value=o&&o.note||"";$("status").value=o?o.status:0;
