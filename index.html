@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Заказы на 8 Марта</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8C%B7%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#FFF4F6;--ink:#2A1A21;--leaf:#1F5A3F;--pink:#D62A66;--card:#FFFFFF;--line:#E8BFD0;--muted:#745F69;--onpink:#FFFFFF;
@@ -180,13 +181,28 @@ input[type=date],input[type=time]{height:46px}
 }
 #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:90%;padding:10px 16px;border-radius:12px;background:var(--ink);color:var(--bg);font-weight:700;z-index:50;opacity:0;pointer-events:none;transition:opacity .2s;text-align:center}
 #toast.show{opacity:1}
+body.auth-pending main,body.auth-pending .fab{visibility:hidden}
+#login{position:fixed;inset:0;z-index:100;background:var(--bg);overflow:auto;display:flex;align-items:center;justify-content:center;padding:20px}
+#login.hidden{display:none}
+#lf{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px}
+#lf h1{margin:0 0 4px}
 </style>
 </head>
-<body>
+<body class="auth-pending">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="t" viewBox="0 0 40 64"><path d="M20 62V34" stroke="#2F7A4F" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M20 52c8-2 12-8 13-14-6 1-11 5-13 14z" fill="#2F7A4F"/><path d="M7 6c0 0 0 30 13 30S33 6 33 6l-7 9-6-11-6 11z" fill="currentColor"/></symbol></svg>
+<div id="login" class="hidden" role="dialog" aria-modal="true" aria-labelledby="ltitle">
+<form id="lf" novalidate>
+<h1 id="ltitle">Заказы на 8 Марта</h1>
+<p class="sub">Войдите, чтобы продолжить.</p>
+<label for="lmail">Почта</label><input id="lmail" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false">
+<label for="lpass">Пароль</label><input id="lpass" type="password" autocomplete="current-password">
+<p class="err" id="lerr" role="alert"></p>
+<button class="cta" type="submit" id="lgo" style="width:100%">Войти</button>
+</form>
+</div>
 <main>
 <h1>Заказы на 8 Марта</h1>
-<p class="sub" id="mode">Подключаемся к базе…</p>
+<p class="sub"><span id="mode">Загрузка…</span> <button class="pill hidden" id="logout" type="button">Выйти</button></p>
 <div class="stats" id="stats"></div>
 <div class="acts" style="margin-bottom:10px"><button class="ghost" id="showall" type="button">Все заказы (<span id="allcnt">0</span>)</button><button class="ghost" id="shownd" type="button">Сколько тюльпанов нужно</button><button class="ghost hidden" id="xlmain" type="button">Выгрузить в Excel</button></div>
 <input type="search" id="srch" placeholder="Поиск по имени, телефону или номеру" aria-label="Поиск заказа по имени или телефону" autocomplete="off" style="margin-bottom:14px">
@@ -248,6 +264,11 @@ input[type=date],input[type=time]{height:46px}
 <script>
 // Настройки: цены и доставка по умолчанию
 var CONFIG={cur:"сом",delivery:200,tulip:100};
+// Доступ. Почты писать маленькими буквами.
+// OWNERS: кто может удалять заказы (то же самое должно быть записано в правилах Firestore).
+// TEAM: буква номера заказа для каждого сотрудника, например {"anna@mail.com":"A","nurlan@mail.com":"B"}
+var OWNERS=[];
+var TEAM={};
 var PACK={none:{name:"Без упаковки",price:0},matte:{name:"Матовая",price:0},kraft:{name:"Крафт",price:0},clear:{name:"Прозрачная",price:0}};
 // Сорта (пока примерные): название, цвет, цена, группа (для фильтра при выборе). Замените на свой список
 var V=[
@@ -271,8 +292,8 @@ function cnt(o){var t=flowersOf(o),n=0;Object.keys(t).forEach(function(k){n+=t[k
 function payTag(o){var t=o.total||0,p=o.paid||0,r=Math.max(0,t-p);
  return '<div class="paytag'+(t>0&&r===0?' full':'')+'">'+(t>0&&r===0?'Оплачено полностью':p?'Предоплата '+money(p)+' · остаток <b>'+money(r)+'</b>':'Без предоплаты · к оплате <b>'+money(t)+'</b>')+'</div>'}
 function normNum(s){var m={"А":"A","В":"B","С":"C","Е":"E","Н":"H","К":"K","М":"M","О":"O","Р":"P","Т":"T","Х":"X"};return String(s||"").toUpperCase().replace(/\s+/g,"").replace(/[АВСЕНКМОРТХ]/g,function(c){return m[c]})}
-function nextNum(){var last=orders.filter(function(o){return o.num}).sort(function(a,b){return a.id<b.id?-1:1}).pop(),pre="A";
- if(last){var mm=normNum(last.num).match(/^(\D+)\d+$/);if(mm)pre=mm[1]}
+function nextNum(){var last=orders.filter(function(o){return o.num}).sort(function(a,b){return a.id<b.id?-1:1}).pop(),pre=myLetter()||"A";
+ if(last&&!myLetter()){var mm=normNum(last.num).match(/^(\D+)\d+$/);if(mm)pre=mm[1]}
  var mx=0;orders.forEach(function(o){var m2=normNum(o.num).match(/^(\D+)(\d+)$/);if(m2&&m2[1]===pre)mx=Math.max(mx,+m2[2])});return pre+(mx+1)}
 function phoneLink(p){var d=String(p||"").replace(/[^\d+]/g,"");return d.replace(/\D/g,"").length>=5?'<a href="tel:'+esc(d)+'">'+esc(p)+'</a>':esc(p||"")}
 function modeLine(o){return o.mode==="delivery"?' · <span class="mtag d">Доставка</span> '+esc(o.addr||"адрес не указан"):' · <span class="mtag p">Самовывоз</span>'}
@@ -298,18 +319,43 @@ function remove(id){if(db)return db.doc("orders/"+id).delete();
  orders=orders.filter(function(x){return x.id!==id});localSave();render();return Promise.resolve()}
 function fail(e){var m="Не удалось сохранить: "+((e&&(e.message||e.code))||"нет доступа на запись. Попросите владельца страницы дать вам права участника.");$("err").textContent=m;$("mode").textContent=m}
 
-async function init(){
- try{if(window.claude)db=await window.claude.use("db")}catch(e){db=null}
- try{if(window.claude)dlCap=await window.claude.use("downloads")}catch(e){dlCap=null}
- if(dlCap){$("xlmain").classList.remove("hidden");$("xlall").classList.remove("hidden")}
- if(db){
-  var timer=setTimeout(function(){$("mode").textContent="Нет связи с базой: данные могут быть устаревшими"},10000);
-  db.collection("orders").onSnapshot(function(s){
-   orders=s.docs.map(function(d){var o=Object.assign({},d.data());o.id=d.id;return o});
-   if(!s.metadata.fromCache){clearTimeout(timer);$("mode").textContent="Общая база: все, у кого открыта страница, видят одни и те же заказы"}
-   render()},function(e){clearTimeout(timer);$("mode").textContent="Ошибка базы: "+(e&&e.code||"")});
- }else{orders=localLoad();$("mode").textContent="Данные хранятся только в этом браузере";render()}
-}
+var user=null,unsub=null,loadTimer=null;
+function isOwner(){return !!user&&OWNERS.indexOf((user.email||"").toLowerCase())>-1}
+function myLetter(){return (user&&TEAM[(user.email||"").toLowerCase()])||""}
+function setStatus(){$("mode").textContent="Вы вошли: "+(user?user.email:"")+(navigator.onLine?"":" · нет связи, заказы сохранятся, когда появится интернет")}
+function showLogin(){$("login").classList.remove("hidden");document.querySelector("main").inert=true;if(!touch)$("lmail").focus()}
+function hideLogin(){$("login").classList.add("hidden");document.querySelector("main").inert=false}
+function loginErr(e){var c=(e&&e.code)||"";
+ if(/invalid-credential|wrong-password|user-not-found|invalid-email|missing-password/.test(c))return "Неверная почта или пароль.";
+ if(c==="auth/too-many-requests")return "Слишком много попыток. Подождите несколько минут.";
+ if(c==="auth/network-request-failed")return "Нет связи с интернетом.";
+ if(c==="auth/user-disabled")return "Доступ для этой почты отключён.";
+ return "Не удалось войти ("+(c||"ошибка")+"). Попробуйте ещё раз."}
+function fbError(e){var c=(e&&e.code)||"",m=/permission-denied/.test(c)?"Нет прав на это действие. Удалять заказы может только владелец.":"Не удалось сохранить"+(c?" ("+c+")":"")+".";
+ toast(m)}
+function startListen(){
+ if(unsub)return;
+ loadTimer=setTimeout(function(){$("mode").textContent="Нет связи с базой: данные могут быть устаревшими"},10000);
+ unsub=db.collection("orders").onSnapshot(function(s){
+  orders=s.docs.map(function(d){var o=Object.assign({},d.data());o.id=d.id;return o});
+  if(!s.metadata.fromCache){clearTimeout(loadTimer);setStatus()}
+  render()},function(e){clearTimeout(loadTimer);$("mode").textContent=(e&&e.code==="permission-denied")?"Нет доступа к базе. Обратитесь к владельцу.":"Ошибка базы: "+((e&&e.code)||"")})}
+function stopListen(){if(unsub){unsub();unsub=null}clearTimeout(loadTimer);orders=[];["dlg","alldlg","needdlg"].forEach(function(id){if($(id).open)$(id).close()});render()}
+function init(){
+ db=window.FB.db;
+ $("xlmain").classList.remove("hidden");$("xlall").classList.remove("hidden");
+ window.FB.onUser(function(u){
+  user=u;document.body.classList.remove("auth-pending");
+  if(u){hideLogin();$("logout").classList.remove("hidden");setStatus();startListen()}
+  else{stopListen();$("logout").classList.add("hidden");$("mode").textContent="Нужно войти";showLogin()}})}
+$("lf").addEventListener("submit",function(e){e.preventDefault();
+ var m=$("lmail").value.trim(),p=$("lpass").value;
+ if(!m||!p){$("lerr").textContent="Введите почту и пароль.";return}
+ $("lgo").disabled=true;$("lerr").textContent="";
+ window.FB.login(m,p).then(function(){$("lpass").value=""},function(er){$("lerr").textContent=loginErr(er)}).then(function(){$("lgo").disabled=false})});
+$("logout").onclick=function(){window.FB.logout()};
+window.addEventListener("online",function(){if(user)setStatus()});
+window.addEventListener("offline",function(){if(user)setStatus()});
 
 // Отрисовка
 function byDate(){var m={};orders.forEach(function(o){(m[o.date]=m[o.date]||[]).push(o)});return m}
@@ -493,7 +539,7 @@ document.querySelectorAll('input[name="mode"]').forEach(function(r){r.addEventLi
 
 function openForm(o){
  editing=o?o.id:null;$("err").textContent="";delArm=false;$("del").textContent="Удалить заказ";
- $("ftitle").textContent=o?"Изменить заказ":"Новый заказ";$("del").classList.toggle("hidden",!o);
+ $("ftitle").textContent=o?"Изменить заказ":"Новый заказ";$("del").classList.toggle("hidden",!o||!isOwner());
  $("onum").value=o&&o.num||nextNum();$("date").value=o?o.date:sel;$("time").value=o&&o.time||"";$("name").value=o&&o.name||"";$("phone").value=o&&o.phone||"";
  document.querySelector('input[name="mode"][value="'+(o&&o.mode==="pickup"?"pickup":"delivery")+'"]').checked=true;
  $("addrBox").classList.toggle("hidden",mode()!=="delivery");$("addr").value=o&&o.addr||"";
@@ -582,15 +628,48 @@ function buildXlsx(list){
  sh.forEach(function(z,i){files.push({n:"xl/worksheets/sheet"+(i+1)+".xml",d:enc.encode(xsheet(z[1],z[2],z[3]))})});
  return zipStore(files)}
 function doExport(list){
- if(!dlCap)return;
  if(!list||!list.length){toast("Нет заказов для выгрузки");return}
  var bytes;try{bytes=buildXlsx(list)}catch(e){toast("Не удалось собрать файл");return}
+var fname="Заказы-"+ymd(new Date())+".xlsx";
+ if(!dlCap){try{var a=document.createElement("a"),u=URL.createObjectURL(new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));a.href=u;a.download=fname;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);toast("Файл готов: "+fname)}catch(er){toast("Не удалось сохранить файл")}return}
  dlCap.save({filename:"Заказы-"+ymd(new Date())+".xlsx",data:bytes}).then(function(){toast("Файл сохранён")},function(e){
   var c=e&&e.code;if(c==="declined")return;
   toast(c==="host_unavailable"?"Здесь сохранить файл нельзя. Откройте страницу в браузере или на компьютере.":c==="rate_limited"?"Подождите секунду и нажмите ещё раз":"Не удалось сохранить файл")})}
 $("xlmain").onclick=function(){doExport(orders)};
 $("xlall").onclick=function(){doExport(allShown)};
-init();
+window.startApp=init;
+setTimeout(function(){if(!window.__fbReady){document.body.classList.remove("auth-pending");$("mode").textContent="Не удалось загрузить Firebase. Проверьте интернет и обновите страницу."}},10000);
+</script>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js";
+import {initializeFirestore,getFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,updateDoc,deleteDoc,onSnapshot} from "https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js";
+const firebaseConfig={
+  apiKey:"AIzaSyA4mGxr3wTMwcmqpI8Jfy6IFSoTrM5rlaM",
+  authDomain:"tulip-70710.firebaseapp.com",
+  projectId:"tulip-70710",
+  storageBucket:"tulip-70710.firebasestorage.app",
+  messagingSenderId:"1644405288",
+  appId:"1:1644405288:web:6592f8445fde7ba62d8b1d"
+};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+let fs;
+try{fs=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})})}catch(e){fs=getFirestore(app)}
+const bad=e=>{try{window.fbError&&window.fbError(e)}catch(_){}};
+const run=p=>{p.catch(bad);return Promise.resolve()};
+const idOf=p=>p.split("/")[1];
+window.FB={
+  login:(m,p)=>signInWithEmailAndPassword(auth,m,p),
+  logout:()=>signOut(auth),
+  onUser:cb=>onAuthStateChanged(auth,cb),
+  db:{
+    doc:path=>{const r=doc(fs,"orders",idOf(path));return{set:o=>run(setDoc(r,o)),update:p=>run(updateDoc(r,p)),delete:()=>run(deleteDoc(r))}},
+    collection:name=>({onSnapshot:(next,err)=>onSnapshot(collection(fs,name),{includeMetadataChanges:true},s=>next({docs:s.docs.map(d=>({id:d.id,data:()=>d.data()})),metadata:s.metadata}),err)})
+  }
+};
+window.__fbReady=true;
+window.startApp();
 </script>
 </body>
 </html>
