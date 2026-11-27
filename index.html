@@ -205,7 +205,7 @@ body.auth-pending main,body.auth-pending .fab{visibility:hidden}
 <p class="sub"><span id="mode">Загрузка…</span> <button class="pill hidden" id="logout" type="button">Выйти</button></p>
 <div class="stats" id="stats"></div>
 <div class="acts" style="margin-bottom:10px"><button class="ghost" id="showall" type="button">Все заказы (<span id="allcnt">0</span>)</button><button class="ghost" id="shownd" type="button">Сколько тюльпанов нужно</button><button class="ghost hidden" id="xlmain" type="button">Выгрузить в Excel</button></div>
-<input type="search" id="srch" placeholder="Поиск по имени, телефону или номеру" aria-label="Поиск заказа по имени или телефону" autocomplete="off" style="margin-bottom:14px">
+<input type="search" id="srch" placeholder="Номер заказа, телефон или имя" aria-label="Поиск заказа по номеру, телефону или имени" autocomplete="off" style="margin-bottom:14px">
 
 <section class="card" aria-label="Календарь">
 <div class="nav"><button class="ib" id="prev" aria-label="Предыдущий месяц">‹</button><h2 id="mon"></h2><button class="ib" id="next" aria-label="Следующий месяц">›</button></div>
@@ -232,7 +232,7 @@ body.auth-pending main,body.auth-pending .fab{visibility:hidden}
 <dialog id="alldlg" style="max-width:760px">
 <div class="head"><h2>Все заказы</h2><button type="button" class="ib" id="allx" aria-label="Закрыть">×</button></div>
 <div id="atabs"></div>
-<input type="search" id="asrch" placeholder="Поиск по имени, телефону или номеру" aria-label="Поиск среди всех заказов" autocomplete="off" style="margin:10px 0">
+<input type="search" id="asrch" placeholder="Номер заказа, телефон или имя" aria-label="Поиск среди всех заказов" autocomplete="off" style="margin:10px 0">
 <div class="stats" id="atot"></div>
 <button class="ghost hidden" id="xlall" type="button" style="width:100%;margin:0 0 8px">Выгрузить показанное в Excel</button><p class="sub" id="xlmsg" style="margin:0 0 8px" role="status"></p>
 <div id="alist"></div>
@@ -379,8 +379,12 @@ function renderCal(){
  $("grid").innerHTML=h;var st=$("strip");st.innerHTML=sh;var se=st.querySelector(".sel");if(se)st.scrollLeft=Math.max(0,se.offsetLeft-(st.clientWidth-se.offsetWidth)/2)}
 function renderSearch(t){
  var tl=t.toLowerCase(),td=t.replace(/\D/g,"");
- var isNum=/^[A-Za-zА-Яа-я]\s*\d+$/.test(t),nt=normNum(t),isTel=/^[\d\s+()\-]+$/.test(t)&&td.length>=3;
- var l=orders.filter(function(o){if(isNum)return normNum(o.num)===nt;return (o.name||"").toLowerCase().indexOf(tl)>-1||(isTel&&(o.phone||"").replace(/\D/g,"").indexOf(td)>-1)||(o.num&&normNum(o.num).indexOf(nt)>-1)}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:((a.time||"99:99")<(b.time||"99:99")?-1:1)});
+ var isNum=/^[A-Za-zА-Яа-я]\s*\d+$/.test(t),nt=normNum(t),onlyDig=/^[\d\s+()\-]+$/.test(t)&&td.length>0;
+ var l=orders.filter(function(o){
+  var byNum=isNum?normNum(o.num)===nt:(onlyDig&&String(o.num||"").replace(/\D/g,"")===td);
+  var byName=!onlyDig&&!isNum&&(o.name||"").toLowerCase().indexOf(tl)>-1;
+  var byPhone=onlyDig&&(o.phone||"").replace(/\D/g,"").indexOf(td)>-1;
+  return byNum||byName||byPhone}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:((a.time||"99:99")<(b.time||"99:99")?-1:1)});
  var h='<div class="head"><h2>Найдено заказов: '+l.length+'</h2></div>';
  h+=l.length?l.map(function(o){
   var d=parse(o.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
