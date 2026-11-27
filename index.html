@@ -198,7 +198,9 @@ body.auth-pending main,body.auth-pending .fab{visibility:hidden}
 #login.hidden{display:none}
 #lf{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px}
 #lf h1{margin:0 0 4px}
-html,body{overflow-x:hidden;overscroll-behavior-y:none}
+html,body{overflow-x:hidden;overscroll-behavior:none;touch-action:pan-y;-webkit-text-size-adjust:100%}
+main{overflow-x:clip}
+.strip,.gbar,#atabs{touch-action:pan-x pan-y}
 body:has(dialog[open]),html:has(dialog[open]){overflow:hidden}
 dialog{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 </style>
