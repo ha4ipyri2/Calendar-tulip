@@ -379,7 +379,8 @@ function renderCal(){
  $("grid").innerHTML=h;var st=$("strip");st.innerHTML=sh;var se=st.querySelector(".sel");if(se)st.scrollLeft=Math.max(0,se.offsetLeft-(st.clientWidth-se.offsetWidth)/2)}
 function renderSearch(t){
  var tl=t.toLowerCase(),td=t.replace(/\D/g,"");
- var l=orders.filter(function(o){return (o.name||"").toLowerCase().indexOf(tl)>-1||(td.length>0&&(o.phone||"").replace(/\D/g,"").indexOf(td)>-1)||(o.num&&normNum(o.num).indexOf(normNum(t))>-1)}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:((a.time||"99:99")<(b.time||"99:99")?-1:1)});
+ var isNum=/^[A-Za-zА-Яа-я]\s*\d+$/.test(t),nt=normNum(t),isTel=/^[\d\s+()\-]+$/.test(t)&&td.length>=3;
+ var l=orders.filter(function(o){if(isNum)return normNum(o.num)===nt;return (o.name||"").toLowerCase().indexOf(tl)>-1||(isTel&&(o.phone||"").replace(/\D/g,"").indexOf(td)>-1)||(o.num&&normNum(o.num).indexOf(nt)>-1)}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:((a.time||"99:99")<(b.time||"99:99")?-1:1)});
  var h='<div class="head"><h2>Найдено заказов: '+l.length+'</h2></div>';
  h+=l.length?l.map(function(o){
   var d=parse(o.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
